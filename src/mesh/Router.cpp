@@ -606,7 +606,7 @@ meshtastic_Routing_Error perhapsEncode(meshtastic_MeshPacket *p)
         if (isFromUs(p) &&
 #if ARCH_PORTDUINO
             // Sim radio via the cli flag skips PKC
-            !portduino_config.force_simradio &&
+            portduino_config.lora_module != use_simradio &&
 #endif
             // Don't use PKC with Ham mode
             !owner.is_licensed &&

@@ -89,6 +89,9 @@ NRF52Bluetooth *nrf52Bluetooth = nullptr;
 
 #if defined(ARCH_PORTDUINO)
 #include "platform/portduino/SimRadio.h"
+#include "platform/portduino/KissInterface.h"
+#include "platform/portduino/Transport.h"
+#include "platform/portduino/SoftwareInterface.h"
 #endif
 
 #ifdef ARCH_PORTDUINO
@@ -100,6 +103,7 @@ NRF52Bluetooth *nrf52Bluetooth = nullptr;
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <optional>
 #endif
 
 #if HAS_BUTTON || defined(ARCH_PORTDUINO)
@@ -404,7 +408,11 @@ void setup()
 
     concurrency::hasBeenSetup = true;
 #if ARCH_PORTDUINO
-    SPISettings spiSettings(portduino_config.spiSpeed, MSBFIRST, SPI_MODE0);
+    std::optional<SPISettings> spiSettings;
+    if (portduino_config.lora_module != use_kissoverudp) {
+        spiSettings.emplace(portduino_config.spiSpeed, MSBFIRST, SPI_MODE0);
+    }
+    
 #else
     SPISettings spiSettings(4000000, MSBFIRST, SPI_MODE0);
 #endif
@@ -872,7 +880,7 @@ void setup()
     SPI.begin(false);
 #endif // HW_SPI1_DEVICE
 #elif ARCH_PORTDUINO
-    if (portduino_config.lora_spi_dev != "ch341") {
+    if (portduino_config.lora_spi_dev != "ch341" && portduino_config.lora_module != use_kissoverudp) {
         SPI.begin();
     }
 #elif !defined(ARCH_ESP32) // ARCH_RP2040
@@ -1234,23 +1242,31 @@ void setup()
         case use_llcc68:
             return (RadioInterface *)new LLCC68Interface(hal, cs, irq, rst, busy);
         case use_simradio:
-            return (RadioInterface *)new SimRadio;
+            return (RadioInterface *)new SimRadio;  
+        case use_kissoverudp:
+            LOG_INFO("used kiss interface");
+            return (RadioInterface *)new KissInterface(new UDPTransport("127.0.0.1", 55554, 55555, "127.0.0.1"));      
         default:
             assert(0); // shouldn't happen
             return (RadioInterface *)nullptr;
         }
     };
 
-    LOG_DEBUG("Activate %s radio on SPI port %s", portduino_config.loraModules[portduino_config.lora_module].c_str(),
+    if(portduino_config.lora_module != use_kissoverudp) {
+        LOG_DEBUG("Activate %s radio on SPI port %s", portduino_config.loraModules[portduino_config.lora_module].c_str(),
               portduino_config.lora_spi_dev.c_str());
-    if (portduino_config.lora_spi_dev == "ch341") {
-        RadioLibHAL = ch341Hal;
-    } else {
-        RadioLibHAL = new LockingArduinoHal(SPI, spiSettings);
+        if (portduino_config.lora_spi_dev == "ch341") {
+            RadioLibHAL = ch341Hal;
+        } else {
+            RadioLibHAL = new LockingArduinoHal(SPI, *spiSettings);
+        }
+        rIf =
+            loraModuleInterface((LockingArduinoHal *)RadioLibHAL, portduino_config.lora_cs_pin.pin, portduino_config.lora_irq_pin.pin,
+                                portduino_config.lora_reset_pin.pin, portduino_config.lora_busy_pin.pin);
     }
-    rIf =
-        loraModuleInterface((LockingArduinoHal *)RadioLibHAL, portduino_config.lora_cs_pin.pin, portduino_config.lora_irq_pin.pin,
-                            portduino_config.lora_reset_pin.pin, portduino_config.lora_busy_pin.pin);
+    LOG_DEBUG("Activate %s radio via kiss", portduino_config.loraModules[portduino_config.lora_module].c_str()); 
+    rIf = loraModuleInterface((LockingArduinoHal *) nullptr, portduino_config.lora_cs_pin.pin, portduino_config.lora_irq_pin.pin,
+                              portduino_config.lora_reset_pin.pin, portduino_config.lora_busy_pin.pin);
 
     if (!rIf->init()) {
         LOG_WARN("No %s radio", portduino_config.loraModules[portduino_config.lora_module].c_str());
