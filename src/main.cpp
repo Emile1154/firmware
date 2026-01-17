@@ -1519,7 +1519,7 @@ void setup()
         std::atexit([] { delete piwebServerThread; });
     }
 #endif
-    initApiServer(TCPPort);
+    // initApiServer(TCPPort);
 #endif
 
     // Start airtime logger thread.

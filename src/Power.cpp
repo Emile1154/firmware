@@ -749,7 +749,7 @@ void Power::reboot()
 #elif defined(ARCH_RP2040)
     rp2040.reboot();
 #elif defined(ARCH_PORTDUINO)
-    deInitApiServer();
+    // deInitApiServer();
     if (aLinuxInputImpl)
         aLinuxInputImpl->deInit();
     SPI.end();
