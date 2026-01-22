@@ -295,7 +295,7 @@ public:
     }
 
     int16_t begin(float freq, float bw, uint8_t sf, uint8_t cr, uint8_t syncWord, uint8_t power, uint16_t preambleLength) override{
-        t->begin();
+        t->begin(100);
         current_config = {
             .freq = freq,
             .bw = bw,
