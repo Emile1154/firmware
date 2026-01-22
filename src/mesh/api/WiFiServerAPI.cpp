@@ -1,6 +1,7 @@
 #include "configuration.h"
 #include <Arduino.h>
 
+#ifndef ARCH_PORTDUINO
 #if HAS_WIFI
 #include "WiFiServerAPI.h"
 
@@ -30,4 +31,5 @@ WiFiServerAPI::WiFiServerAPI(WiFiClient &_client) : ServerAPI(_client)
 }
 
 WiFiServerPort::WiFiServerPort(int port) : APIServerPort(port) {}
+#endif
 #endif

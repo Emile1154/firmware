@@ -2,6 +2,8 @@
 #include "configuration.h"
 #include <Arduino.h>
 
+#ifndef ARCH_PORTDUINO
+
 template <typename T>
 ServerAPI<T>::ServerAPI(T &_client) : StreamAPI(&client), concurrency::OSThread("ServerAPI"), client(_client)
 {
@@ -81,3 +83,4 @@ template <class T, class U> int32_t APIServerPort<T, U>::runOnce()
 #endif
     return 100; // only check occasionally for incoming connections
 }
+#endif

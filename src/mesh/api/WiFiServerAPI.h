@@ -1,5 +1,5 @@
 #pragma once
-
+#ifndef ARCH_PORTDUINO
 #include "ServerAPI.h"
 #include <WiFi.h>
 
@@ -29,3 +29,4 @@ class WiFiServerPort : public APIServerPort<WiFiServerAPI, WiFiServer>
 
 void initApiServer(int port = SERVER_API_DEFAULT_PORT);
 void deInitApiServer();
+#endif

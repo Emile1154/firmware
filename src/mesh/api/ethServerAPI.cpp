@@ -1,6 +1,6 @@
 #include "configuration.h"
 #include <Arduino.h>
-
+#ifndef ARCH_PORTDUINO
 #if HAS_ETHERNET && !defined(USE_WS5500)
 
 #include "ethServerAPI.h"
@@ -25,4 +25,5 @@ ethServerAPI::ethServerAPI(EthernetClient &_client) : ServerAPI(_client)
 
 ethServerPort::ethServerPort(int port) : APIServerPort(port) {}
 
+#endif
 #endif

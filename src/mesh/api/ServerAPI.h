@@ -1,8 +1,10 @@
 #pragma once
 
+#define SERVER_API_DEFAULT_PORT 4403
+#ifndef ARCH_PORTDUINO
+
 #include "StreamAPI.h"
 
-#define SERVER_API_DEFAULT_PORT 4403
 
 /**
  * Provides both debug printing and, if the client starts sending protobufs to us, switches to send/receive protobufs
@@ -56,3 +58,4 @@ template <class T, class U> class APIServerPort : public U, private concurrency:
   protected:
     int32_t runOnce() override;
 };
+#endif

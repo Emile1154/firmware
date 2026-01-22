@@ -25,6 +25,7 @@ template class LR11x0Interface<LR1121>;
 template class SX126xInterface<STM32WLx>;
 #endif
 
+#ifndef ARCH_PORTDUINO
 #if HAS_ETHERNET && !defined(USE_WS5500)
 #include "api/ethServerAPI.h"
 template class ServerAPI<EthernetClient>;
@@ -35,4 +36,5 @@ template class APIServerPort<ethServerAPI, EthernetServer>;
 #include "api/WiFiServerAPI.h"
 template class ServerAPI<WiFiClient>;
 template class APIServerPort<WiFiServerAPI, WiFiServer>;
+#endif
 #endif
