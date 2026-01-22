@@ -92,6 +92,7 @@ NRF52Bluetooth *nrf52Bluetooth = nullptr;
 #include "platform/portduino/KissInterface.h"
 #include "platform/portduino/Transport.h"
 #include "platform/portduino/SoftwareInterface.h"
+#include "mesh/api/TCPServer.h"
 #endif
 
 #ifdef ARCH_PORTDUINO
@@ -1519,7 +1520,7 @@ void setup()
         std::atexit([] { delete piwebServerThread; });
     }
 #endif
-    // initApiServer(TCPPort);
+    initApiServer(TCPPort);
 #endif
 
     // Start airtime logger thread.
