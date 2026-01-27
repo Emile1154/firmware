@@ -44,7 +44,7 @@ class StreamAPI : public PhoneAPI
 
   public:
     StreamAPI(Stream *_stream) : stream(_stream) {}
-
+    ~StreamAPI(){}
     /**
      * Currently we require frequent invocation from loop() to check for arrived serial packets and to send new packets to the
      * phone.
