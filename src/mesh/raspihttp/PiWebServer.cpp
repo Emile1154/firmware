@@ -29,12 +29,15 @@ Steps to get it running:
     Build it and copy the content of the folder web/dist/* to the folder you did set as "RootPath"
 
 !!!The WebServer should not be used as production system or exposed to the Internet. Its a raw basic version!!!
+newDeviceDialog.connectionFailedAlert.title
 
+newDeviceDialog.connectionFailedAlert.descriptionPrefixnewDeviceDialog.connectionFailedAlert.openLinkPrefixnewDeviceDialog.http://meshtastic.local 
+newDeviceDialog.connectionFailedAlert.openLinkSuffix. newDeviceDialog.connectionFailedAlert.learnMoreLink
 Author: Marc Philipp Hammermann
 mail:   marchammermann@googlemail.com
 
 */
-#ifdef PORTDUINO_LINUX_HARDWARE
+#ifdef ARCH_PORTDUINO
 #if __has_include(<ulfius.h>)
 #include "PiWebServer.h"
 #include "NodeDB.h"

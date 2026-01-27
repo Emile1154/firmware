@@ -1,5 +1,5 @@
 #pragma once
-#ifdef PORTDUINO_LINUX_HARDWARE
+#ifdef ARCH_PORTDUINO
 #if __has_include(<ulfius.h>)
 #include "PhoneAPI.h"
 #include "ulfius-cfg.h"
