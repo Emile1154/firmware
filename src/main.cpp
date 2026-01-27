@@ -93,6 +93,8 @@ NRF52Bluetooth *nrf52Bluetooth = nullptr;
 #include "platform/portduino/Transport.h"
 #include "platform/portduino/SoftwareInterface.h"
 #include "mesh/api/TCPServer.h"
+TCPSocketStream *stream;
+TCPServer *apiPort;
 #endif
 
 #ifdef ARCH_PORTDUINO
