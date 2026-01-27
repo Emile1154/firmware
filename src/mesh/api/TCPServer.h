@@ -19,13 +19,15 @@
 class TCPSocketStream : public Stream {
 private:
   
-    int client_fd;
+    
 
     struct sockaddr_in server_addr;
     uint16_t port;
 
 public:
+    int client_fd;
     int socket_fd;
+    int res;
     TCPSocketStream(uint16_t port) : port(port), socket_fd(-1) {
         memset(&server_addr, 0, sizeof(server_addr));
         server_addr.sin_family = AF_INET;
@@ -36,23 +38,30 @@ public:
         if (socket_fd < 0) {
             throw std::runtime_error("Socket creation failed");
         }
-
-        if (bind(socket_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+        int opt = 1;
+        setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+        res =bind(socket_fd, (struct sockaddr*)&server_addr, sizeof(server_addr));
+        if (res < 0) {
             close(socket_fd);
             throw std::runtime_error("Bind failed");
         }
-        if (listen(socket_fd, 5) != 0) {
-            close(socket_fd);
-            throw std::runtime_error("listen failed");
-        } else {
-            struct sockaddr_in  cli; 
-            int len = sizeof(cli);
-             client_fd = accept(socket_fd, (sockaddr* ) &cli, (socklen_t *) &len );
-            if (client_fd < 0) {
-                close(socket_fd);
-                throw std::runtime_error("Socket accept failed");
-            }
-        }
+        
+        struct sockaddr_in  cli; 
+        int len = sizeof(cli);
+        
+
+        // need run in the task 
+        // if (listen(socket_fd, 5) == 0) {
+        //     close(socket_fd);
+        //     throw std::runtime_error("listen failed");
+        // }
+        // client_fd = accept(socket_fd, (sockaddr* ) &cli, (socklen_t *) &len );
+        // if (client_fd < 0) {
+        //     close(socket_fd);
+        //     throw std::runtime_error("accept failed");
+        // }
+        
+     
     }
 
 
@@ -83,24 +92,29 @@ public:
     size_t write(uint8_t) override {return 0; }
     int availableForWrite() override {return 0; }
 
-    ~TCPSocketStream() {
+    void cleanup() {
         if (client_fd >= 0) {
-            close(client_fd); // Close client socket
+            close(client_fd); 
+            client_fd = -1; 
         }
         if (socket_fd >= 0) {
-            close(socket_fd); // Close listening socket
+            close(socket_fd); 
+            socket_fd = -1; 
         }
     }
+
+
 };
 class TCPServer : public StreamAPI {
 private:
     int serverSocket;
     struct sockaddr_in serverAddr;
-    std::thread read_thread;
-    std::atomic<bool> enabled;
+    
     int socket;
 
 public:
+    std::thread read_thread;
+    std::atomic<bool> enabled;
     TCPServer(Stream* stream, int socket) : StreamAPI(stream), socket(socket) {}
 
     
@@ -109,47 +123,54 @@ public:
         if (read_thread.joinable()) {
             read_thread.join();
         }
-        // close(serverSocket); // Close the server socket
     }
+
     void init(){
         // stream->init();
         enabled = true;
         read_thread = std::thread(&TCPServer::run, this);
-        
     }
 
-    
     virtual void onConnectionChanged(bool connected) override {}
 
    
-
     bool checkIsConnected() override {
         struct sockaddr_in addr;
         socklen_t len = sizeof(addr);
-        // Try to get peer name; if it fails, the socket is not connected
         return (getpeername(socket, (struct sockaddr*)&addr, &len) == 0);
     }
 
     void run() {
        
         while (enabled) {
-            // if (connected()) {
             StreamAPI::runOncePart();
-            // } else {
-                // LOG_INFO("Client dropped connection, suspend API service");
-                // enabled = false; // we no longer need to run
-            // }
         }
     }
 };
-static TCPServer *apiPort = nullptr;
+
+
+
+
+extern TCPSocketStream *stream;
+extern TCPServer *apiPort;
 inline void initApiServer(int port ) {
     LOG_INFO("API server listening on TCP port %d", port);
-    if (apiPort == nullptr){
-        TCPSocketStream *stream = new TCPSocketStream(port);
-        
+    if (!stream) {
+        stream = new TCPSocketStream(port);
         apiPort = new TCPServer(stream, stream->socket_fd);
         apiPort->init();
+    }
+}
+
+inline void deInitApiServer(){
+    if (apiPort){
+        delete apiPort;
+        apiPort = nullptr;
+    }
+    if (stream ){
+        stream->cleanup(); 
+        delete stream;
+        stream = nullptr;
     }
 }
 
