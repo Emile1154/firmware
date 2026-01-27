@@ -22,7 +22,8 @@
 #include "sleep.h"
 
 #if defined(ARCH_PORTDUINO)
-#include "api/WiFiServerAPI.h"
+#include "api/TCPServer.h"
+// #include "api/WiFiServerAPI.h"
 #include "input/LinuxInputImpl.h"
 #endif
 
@@ -749,7 +750,7 @@ void Power::reboot()
 #elif defined(ARCH_RP2040)
     rp2040.reboot();
 #elif defined(ARCH_PORTDUINO)
-    // deInitApiServer();
+    deInitApiServer();
     if (aLinuxInputImpl)
         aLinuxInputImpl->deInit();
     SPI.end();
