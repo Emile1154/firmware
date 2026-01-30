@@ -54,7 +54,9 @@ void cpuDeepSleep(uint32_t msecs)
 
 void updateBatteryLevel(uint8_t level) NOT_IMPLEMENTED("updateBatteryLevel");
 
-int TCPPort = SERVER_API_DEFAULT_PORT;
+int TCPPort = 4403;
+int REMOTE_PORT = 55555;
+int LOCAL_PORT = 55555;
 
 static error_t parse_opt(int key, char *arg, struct argp_state *state)
 {
@@ -63,16 +65,38 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
         if (sscanf(arg, "%d", &TCPPort) < 1)
             return ARGP_ERR_UNKNOWN;
         else
-            printf("Using config file %d\n", TCPPort);
+            printf("TCP PORT %d\n", TCPPort);
+        break;
+    case 'l':
+        if (sscanf(arg, "%d", &LOCAL_PORT) < 1)
+            return ARGP_ERR_UNKNOWN;
+        else
+            printf("LOCAL PORT %d\n", TCPPort);
+        break;
+    case 'r':
+        if (sscanf(arg, "%d", &REMOTE_PORT) < 1)
+            return ARGP_ERR_UNKNOWN;
+        else
+            printf("REMOTE PORT %d\n", TCPPort);
+        break;
+    case 'w':
+        portduino_config.webserver_root_path = "/home/user/workspace/web";
+        if (sscanf(arg, "%d", &portduino_config.webserverport) < 1)
+            return ARGP_ERR_UNKNOWN;
+        else
+            printf("WEB SERVER PORT %d\n", portduino_config.webserverport);
         break;
     case 'c':
         configPath = arg;
         break;
     case 's':
         portduino_config.force_simradio = true;
+        // portduino_config.webserver_ssl_key_path = "/home/user/workspace/keys/private_key.pem";
+        // portduino_config.webserver_ssl_cert_path = "/home/user/workspace/keys/certificate.pem";
         break;
     case 'h':
         optionMac = arg;
+        printf("PROVIDED MAC ADDR %s\n", optionMac);
         break;
     case 'v':
         verboseEnabled = true;
@@ -90,13 +114,18 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
 
 void portduinoCustomInit()
 {
-    static struct argp_option options[] = {{"port", 'p', "PORT", 0, "The TCP port to use."},
-                                           {"config", 'c', "CONFIG_PATH", 0, "Full path of the .yaml config file to use."},
-                                           {"hwid", 'h', "HWID", 0, "The mac address to assign to this virtual machine"},
-                                           {"sim", 's', 0, 0, "Run in Simulated radio mode"},
-                                           {"verbose", 'v', 0, 0, "Set log level to full debug"},
-                                           {"output-yaml", 'y', 0, 0, "Output config yaml and exit"},
-                                           {0}};
+    static struct argp_option options[] = {
+        {"port",        'p', "PORT",        0, "The TCP port to use."},
+        {"config",      'c', "CONFIG_PATH", 0, "Full path of the .yaml config file to use."},
+        {"hwid",        'h', "HWID",        0, "The mac address to assign to this virtual machine"},
+        {"sim",         's', 0,             0, "Run in Simulated radio mode"},
+        {"verbose",     'v', 0,             0, "Set log level to full debug"},
+        {"output-yaml", 'y', 0,             0, "Output config yaml and exit"},
+        {"local",       'l', "PORT",        0, "local port for software driver to use"},
+        {"remote",      'r', "PORT",        0, "remote port for software driver to use"},
+        {"webserver",   'w', "PORT",        0, "webserver port to use"},
+        {0}
+    };
     static void *childArguments;
     static char doc[] = "Meshtastic native build.";
     static char args_doc[] = "...";
@@ -900,7 +929,9 @@ static bool ends_with(std::string_view str, std::string_view suffix)
 bool MAC_from_string(std::string mac_str, uint8_t *dmac)
 {
     mac_str.erase(std::remove(mac_str.begin(), mac_str.end(), ':'), mac_str.end());
+    
     if (mac_str.length() == 12) {
+        portduino_config.mac_address = mac_str;
         dmac[0] = std::stoi(portduino_config.mac_address.substr(0, 2), nullptr, 16);
         dmac[1] = std::stoi(portduino_config.mac_address.substr(2, 2), nullptr, 16);
         dmac[2] = std::stoi(portduino_config.mac_address.substr(4, 2), nullptr, 16);

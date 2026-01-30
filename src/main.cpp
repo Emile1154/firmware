@@ -95,6 +95,8 @@ NRF52Bluetooth *nrf52Bluetooth = nullptr;
 #include "mesh/api/TCPServer.h"
 TCPSocketStream *stream;
 TCPServer *apiPort;
+extern int REMOTE_PORT;
+extern int LOCAL_PORT;
 #endif
 
 #ifdef ARCH_PORTDUINO
@@ -1248,7 +1250,7 @@ void setup()
             return (RadioInterface *)new SimRadio;  
         case use_kissoverudp:
             LOG_INFO("used kiss interface");
-            return (RadioInterface *)new KissInterface(new UDPTransport("127.0.0.1", 55554, 55555, "127.0.0.1"));      
+            return (RadioInterface *)new KissInterface(new UDPTransport("127.0.0.1", REMOTE_PORT, LOCAL_PORT, "127.0.0.1"));      
         default:
             assert(0); // shouldn't happen
             return (RadioInterface *)nullptr;
