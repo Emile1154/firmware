@@ -13,7 +13,7 @@ template <class T> class SoftwareInterface : public RadioSoftLibInterface {
         virtual bool reconfigure() override;
         virtual bool sleep() override;
 
-        bool isIRQPending() override { return 0; }
+        bool isIRQPending() override { return lora.getIrqFlags() != 0; }
 
         void setTCXOVoltage(float voltage) { return; }
 
