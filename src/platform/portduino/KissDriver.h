@@ -12,66 +12,6 @@
 #include <deque>
 #include <iostream>
 
-enum class KISS : uint8_t {
-    FEND            = 0xC0,
-    FESC            = 0xDB,
-    TFEND           = 0xDC,
-    TFESC           = 0xDD,
-
-    CMD_UNKNOWN     = 0xFE,
-    CMD_DATA        = 0x00,
-    CMD_FREQUENCY   = 0x01,
-    CMD_BANDWIDTH   = 0x02,
-    CMD_TXPOWER     = 0x03,
-    CMD_SF          = 0x04,
-    CMD_CR          = 0x05,
-    CMD_RADIO_STATE = 0x06, 
-    CMD_RADIO_LOCK  = 0x07,
-    CMD_DETECT      = 0x08,  
-    CMD_PROMISC     = 0x0E, 
-    CMD_READY       = 0x0F,  
-    CMD_STAT_RX     = 0x21,
-    CMD_STAT_TX     = 0x22,
-    CMD_STAT_RSSI   = 0x23,
-    CMD_STAT_SNR    = 0x24,
-    CMD_FREQ_ERR    = 0x25,
-    CMD_BLINK       = 0x30,
-    CMD_RANDOM      = 0x40,
-    CMD_FW_VERSION  = 0x50,
-    CMD_ROM_READ    = 0x51,
-    CMD_PREAMBLE    = 0x52,
-
-    DETECT_REQ      = 0x73,
-    DETECT_RESP     = 0x46,
-
-    RADIO_STATE_OFF = 0x00,
-    RADIO_STATE_ON  = 0x01,
-    RADIO_STATE_ASK = 0xFF,
-
-};
-
-enum RXT {
-    IDLE,
-    RECEIVE,
-    TRANSMIT,
-};
-
-typedef struct{
-    float   freq;
-    float   bw;
-    uint8_t sf;
-    uint8_t cr;
-    uint8_t power;
-    uint8_t syncWord;
-    uint16_t preambleLength;
-} phy_config_t;
-
-typedef struct{
-    float snr;
-    float rssi;
-    float freq_error;
-} metadata_t;
-
 class SoftwareDriver : public PhysicalLayer {
 public:
     virtual ~SoftwareDriver() = default;
@@ -287,11 +227,72 @@ public:
     virtual void setDio1Action(void (*func)(void) ) = 0;
 };
 
+
+enum class KISS : uint8_t {
+    FEND            = 0xC0,
+    FESC            = 0xDB,
+    TFEND           = 0xDC,
+    TFESC           = 0xDD,
+
+    CMD_UNKNOWN     = 0xFE,
+    CMD_DATA        = 0x00,
+    CMD_FREQUENCY   = 0x01,
+    CMD_BANDWIDTH   = 0x02,
+    CMD_TXPOWER     = 0x03,
+    CMD_SF          = 0x04,
+    CMD_CR          = 0x05,
+    CMD_RADIO_STATE = 0x06, 
+    CMD_RADIO_LOCK  = 0x07,
+    CMD_DETECT      = 0x08,  
+    CMD_PROMISC     = 0x0E, 
+    CMD_READY       = 0x0F,  
+    CMD_STAT_RX     = 0x21,
+    CMD_STAT_TX     = 0x22,
+    CMD_STAT_RSSI   = 0x23,
+    CMD_STAT_SNR    = 0x24,
+    CMD_FREQ_ERR    = 0x25,
+    CMD_BLINK       = 0x30,
+    CMD_RANDOM      = 0x40,
+    CMD_FW_VERSION  = 0x50,
+    CMD_ROM_READ    = 0x51,
+    CMD_PREAMBLE    = 0x52,
+
+    DETECT_REQ      = 0x73,
+    DETECT_RESP     = 0x46,
+
+    RADIO_STATE_OFF = 0x00,
+    RADIO_STATE_ON  = 0x01,
+    RADIO_STATE_ASK = 0xFF,
+
+};
+
+enum RXT {
+    IDLE,
+    RECEIVE,
+    TRANSMIT,
+};
+
+typedef struct{
+    float   freq;
+    float   bw;
+    uint8_t sf;
+    uint8_t cr;
+    uint8_t power;
+    uint8_t syncWord;
+    uint16_t preambleLength;
+} phy_config_t;
+
+typedef struct{
+    float snr;
+    float rssi;
+    float freq_error;
+} metadata_t;
+
 class KissDriver : public SoftwareDriver {
 public:
 
     KissDriver(Transport* t) :  t(t), running(false), irqFlags(0) {
-        read_thread = std::thread(&KissDriver::work, this);
+        
     }
 
     int16_t begin(float freq, float bw, uint8_t sf, uint8_t cr, uint8_t syncWord, uint8_t power, uint16_t preambleLength) override{
@@ -315,7 +316,7 @@ public:
         setOutputPower(power);
 
         running = true;
-
+        read_thread = std::thread(&KissDriver::work, this);
         return RADIOLIB_ERR_NONE;
     }
     int16_t standby() override {
@@ -608,25 +609,11 @@ private:
             while(buffer.size() >= MIN_PACKET_LEN){
                 auto start = std::find(buffer.begin(), buffer.end(), (uint8_t) KISS::FEND);
 
-                if (start == buffer.end()){
-                    // remove trash
-                    buffer.clear();
-                    break;
-                }
-                auto end = std::find(start + 1, buffer.end(), (uint8_t) KISS::FEND);
-                if (end == buffer.end()){
-                    // not complete frame  
-                    buffer.erase(buffer.begin(), start);
-                    break;
-                }
-                if (end - start < MIN_PACKET_LEN){
-                    buffer.erase(buffer.begin(), end);
-                    break;
-                }
+                auto end = std::find(start + 2, buffer.end(), (uint8_t) KISS::FEND);
 
                 std::vector<uint8_t> frame(start + 1, end);
                 
-                buffer.erase(buffer.begin(), end + 1);
+                buffer.erase(buffer.begin(), end+1);
                 
                 handleFrame(frame);
                 
@@ -645,38 +632,46 @@ private:
 
         switch ((KISS) data[0]) {
             case KISS::CMD_DATA:
-                rx_queue.insert(rx_queue.end(), data.begin() + 1, data.end() - 1);
+                rx_queue.insert(rx_queue.end(), data.begin() + 1, data.end());
+                printf("CMD DATA recvlen:%d \n", data.size()-1);
                 break;
             case KISS::CMD_READY:
-                memcpy(&irqFlags, data.data() + 1, sizeof(uint16_t));
+                
+                irqFlags = data[1];
                 state = RXT::IDLE;
                 // TX/RX done
                 if (irqCallback){
                     irqCallback();
                 }
+                printf("CMD READY\n");
                 
                 break;
             case KISS::CMD_DETECT:
                 // RX begin
                 state = RXT::RECEIVE;
+                
+                irqFlags = data[1];
+                printf("CMD DETECT\n");
                 break;
             case KISS::CMD_STAT_RSSI:
-                memcpy(&metadata.rssi, data.data() + 1, sizeof(float));
+                metadata.rssi = *reinterpret_cast<const float*>(&data[1]);
+                printf("CMD RSSI\n");
                 break;
             case KISS::CMD_STAT_SNR:
-                memcpy(&metadata.snr, data.data() + 1, sizeof(float));
+                metadata.snr =  *reinterpret_cast<const float*>(&data[1]);
+                printf("CMD SNR\n");
                 break;
             case KISS::CMD_FREQ_ERR:
-                memcpy(&metadata.freq_error, data.data() + 1, sizeof(float));
+                metadata.freq_error =  *reinterpret_cast<const float*>(&data[1]);
                 break;
 
             
-            case KISS::CMD_STAT_RX:
-                break;
-            case KISS::CMD_STAT_TX:
-                break;
-            default:
-                break;
+            // case KISS::CMD_STAT_RX:
+            //     break;
+            // case KISS::CMD_STAT_TX:
+            //     break;
+            // default:
+            //     break;
         }
     }
     phy_config_t current_config;
