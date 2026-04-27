@@ -91,8 +91,8 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
         break;
     case 's':
         portduino_config.force_simradio = true;
-        // portduino_config.webserver_ssl_key_path = "/home/user/workspace/keys/private_key.pem";
-        // portduino_config.webserver_ssl_cert_path = "/home/user/workspace/keys/certificate.pem";
+        portduino_config.webserver_ssl_key_path = "/home/user/workspace/keys/private_key.pem";
+        portduino_config.webserver_ssl_cert_path = "/home/user/workspace/keys/certificate.pem";
         break;
     case 'h':
         optionMac = arg;

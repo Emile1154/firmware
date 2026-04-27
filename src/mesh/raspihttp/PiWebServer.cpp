@@ -453,13 +453,14 @@ void initWebServer() {}
 PiWebServerThread::PiWebServerThread()
 {
     int ret, retssl, webservport;
+    //awdas d sa
 
-    if (CheckSSLandLoad() != 0) {
-        CreateSSLCertificate();
-        if (CheckSSLandLoad() != 0) {
-            LOG_ERROR("Major Error Gen & Read SSL Certificate");
-        }
-    }
+    // if (CheckSSLandLoad() != 0) {
+    //     CreateSSLCertificate();
+    //     if (CheckSSLandLoad() != 0) {
+    //         LOG_ERROR("Major Error Gen & Read SSL Certificate");
+    //     }
+    // }
 
     if (portduino_config.webserverport != 0) {
         webservport = portduino_config.webserverport;
