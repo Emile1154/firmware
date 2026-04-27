@@ -15,6 +15,8 @@
 #include <atomic>
 #include <iostream>
 #include <sys/ioctl.h>
+#include <fcntl.h>
+#include <errno.h>
 
 class TCPSocketStream : public Stream {
 private:
@@ -28,7 +30,7 @@ public:
     int client_fd;
     int socket_fd;
     int res;
-    TCPSocketStream(uint16_t port) : port(port), socket_fd(-1) {
+    TCPSocketStream(uint16_t port) : port(port), socket_fd(-1), client_fd(-1) {
         memset(&server_addr, 0, sizeof(server_addr));
         server_addr.sin_family = AF_INET;
         server_addr.sin_port = htons(port);
@@ -38,12 +40,19 @@ public:
         if (socket_fd < 0) {
             throw std::runtime_error("Socket creation failed");
         }
+        int flags = fcntl(socket_fd, F_GETFL, 0);
+        fcntl(socket_fd, F_SETFL, flags | O_NONBLOCK);
         int opt = 1;
         setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
         res =bind(socket_fd, (struct sockaddr*)&server_addr, sizeof(server_addr));
         if (res < 0) {
             close(socket_fd);
             throw std::runtime_error("Bind failed");
+        }
+        
+        if (listen(socket_fd, 1) < 0) {
+            close(socket_fd);
+            throw std::runtime_error("Listen failed");
         }
         
         struct sockaddr_in  cli; 
@@ -64,21 +73,64 @@ public:
      
     }
 
+    bool isConnected() {
+        if (client_fd < 0) return false;
+        struct sockaddr_in addr;
+        socklen_t len = sizeof(addr);
+        if (getpeername(client_fd, (struct sockaddr*)&addr, &len) < 0) {
+            close(client_fd);
+            client_fd = -1;
+            return false;
+        }
+        return true;
+    }
 
     int available() override {
+        if (client_fd < 0) {
+            struct sockaddr_in cli;
+            socklen_t len = sizeof(cli);
+            client_fd = accept(socket_fd, (struct sockaddr*)&cli, &len);
+            if (client_fd >= 0) {
+                int flags = fcntl(client_fd, F_GETFL, 0);
+                fcntl(client_fd, F_SETFL, flags | O_NONBLOCK);
+                LOG_INFO("TCP client connected");
+            } else if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                return 0;
+            }
+        }
+        if (client_fd < 0) return 0;
         int count;
-        ioctl(client_fd, FIONREAD, &count);
+        if (ioctl(client_fd, FIONREAD, &count) < 0) {
+            close(client_fd);
+            client_fd = -1;
+            return 0;
+        }
         return count;
     }
 
     int read() override {
+        if (client_fd < 0) return -1;
         uint8_t character;
-        recv(client_fd, &character, sizeof(character), 0);
+        int r = recv(client_fd, &character, sizeof(character), 0);
+        if (r <= 0) {
+            if (r == 0) {
+                LOG_INFO("TCP client disconnected");
+            }
+            close(client_fd);
+            client_fd = -1;
+            return -1;
+        }
         return character;
     }
 
     size_t write(const uint8_t * data, size_t len) override {
+        if (client_fd < 0) return 0;
         int bytes_written = send(client_fd, data, len, 0);
+        if (bytes_written < 0) {
+            close(client_fd);
+            client_fd = -1;
+            return 0;
+        }
         return bytes_written;
     }
 
@@ -107,15 +159,13 @@ public:
 };
 class TCPServer : public StreamAPI {
 private:
-    int serverSocket;
-    struct sockaddr_in serverAddr;
+    TCPSocketStream* tcpStream;
     
-    int socket;
 
 public:
     std::thread read_thread;
     std::atomic<bool> enabled;
-    TCPServer(Stream* stream, int socket) : StreamAPI(stream), socket(socket) {}
+    TCPServer(TCPSocketStream* stream) : StreamAPI(stream), tcpStream(stream) {}
 
     
     ~TCPServer() {
@@ -135,9 +185,7 @@ public:
 
    
     bool checkIsConnected() override {
-        struct sockaddr_in addr;
-        socklen_t len = sizeof(addr);
-        return (getpeername(socket, (struct sockaddr*)&addr, &len) == 0);
+        return tcpStream->isConnected();
     }
 
     void run() {
@@ -157,7 +205,7 @@ inline void initApiServer(int port ) {
     LOG_INFO("API server listening on TCP port %d", port);
     if (!stream) {
         stream = new TCPSocketStream(port);
-        apiPort = new TCPServer(stream, stream->socket_fd);
+        apiPort = new TCPServer(stream);
         apiPort->init();
     }
 }
