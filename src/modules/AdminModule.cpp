@@ -23,6 +23,7 @@
 #endif
 #ifdef ARCH_PORTDUINO
 #include "unistd.h"
+#include "KissInterface.h"
 #endif
 
 #include "Default.h"
@@ -770,7 +771,7 @@ void AdminModule::handleSetConfig(const meshtastic_Config &c)
 
 #if defined(ARCH_PORTDUINO)
         // If running on portduino and using SimRadio, do not require reboot
-        if (SimRadio::instance) {
+        if (SimRadio::instance || KissInterface::instance ) {
             requiresReboot = false;
         }
 #endif
