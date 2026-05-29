@@ -321,6 +321,7 @@ public:
     }
     int16_t standby() override {
         tx_enabled = false;
+        rx_queue.clear(); // discard any partial packet data accumulated before standby
         return RADIOLIB_ERR_NONE;
     }
 
@@ -333,37 +334,45 @@ public:
     }
 
     int16_t setSpreadingFactor(uint8_t sf) override{
+        printf("setSpreadingFactor:%d \n", sf);
         return command((uint8_t) KISS::CMD_SF, &sf, sizeof(sf));
     }
 
     int16_t setBandwidth(float bw) override{
         uint8_t data[4];
         memcpy(data, &bw, 4);
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-        std::reverse(data, data + 4);
-#endif
+// #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+//         printf("setBandwidth reverse bytes");
+//         std::reverse(data, data + 4);
+// #endif  
+        printf("setBandwidth:%f \n", bw);
         return command((uint8_t) KISS::CMD_BANDWIDTH, data, sizeof(data));
     }
 
     int16_t setCodingRate(uint8_t cr) override{
+        printf("setCodingRate:%d \n", cr);
         return command((uint8_t) KISS::CMD_CR, &cr, sizeof(cr));
     }
 
     int16_t setFrequency(float freq) override{
         uint8_t data[4];
         memcpy(data, &freq, 4);
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-        std::reverse(data, data + 4);
-#endif  
+// #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+//         printf("setFrequency reverse bytes");
+//         std::reverse(data, data + 4);
+// #endif  
+        printf("setFrequency:%f \n", freq);
         return command((uint8_t) KISS::CMD_FREQUENCY, data, sizeof(data));
     }
 
     int16_t setPreambleLength(size_t len) override {
         uint8_t data[2];
         memcpy(data, &len, 2);
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-        std::reverse(data, data + 2);
-#endif
+// #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+//         printf("setPreambleLength reverse bytes");
+//         std::reverse(data, data + 2);
+// #endif  
+        printf("setFrequency:%d \n", len);
         return command((uint8_t) KISS::CMD_PREAMBLE, data, sizeof(data));
     }
     int16_t setSyncWord(uint8_t sync, uint8_t controlBits = 0x44) override{
@@ -564,9 +573,13 @@ private:
         escaped.insert(escaped.begin(), cmd);
         escaped.insert(escaped.begin(),static_cast<uint8_t>(KISS::FEND));
         escaped.push_back(static_cast<uint8_t>(KISS::FEND));
-
-        size_t sent = t->send(escaped.data(), escaped.size());
-        return sent == escaped.size() ? update_config((KISS)cmd, payload, payloadLen) : 1;
+        if (cmd == (uint8_t)KISS::CMD_DATA){
+            size_t sent = t->send(escaped.data(), escaped.size());
+            return sent == escaped.size() ? RADIOLIB_ERR_NONE : 1;
+        }else{
+            return update_config((KISS)cmd, payload, payloadLen);
+        }
+        
     }
 
     int16_t update_config(KISS cmd, const uint8_t* payload, size_t payloadLen){

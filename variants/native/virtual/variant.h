@@ -4,6 +4,7 @@
 // #define USE_TFTDISPLAY 0
 #define CANNED_MESSAGE_MODULE_ENABLE 1
 #define HAS_ETHERNET 1
+#define HAS_BLUETOOTH 0
 // #define HAS_GPS 1
 #define MAX_RX_TOPHONE portduino_config.maxtophone
 #define MAX_NUM_NODES portduino_config.MaxNodes

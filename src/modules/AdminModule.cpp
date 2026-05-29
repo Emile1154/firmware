@@ -28,6 +28,7 @@
 
 #include "Default.h"
 #include "TypeConversions.h"
+#include "modules/NodeInfoModule.h"
 
 #if !MESHTASTIC_EXCLUDE_MQTT
 #include "mqtt/MQTT.h"
@@ -610,6 +611,7 @@ void AdminModule::handleSetConfig(const meshtastic_Config &c)
     auto existingRole = config.device.role;
     bool isRegionUnset = (config.lora.region == meshtastic_Config_LoRaConfig_RegionCode_UNSET);
     bool requiresReboot = true;
+    bool regionFirstSet = false;
 
     switch (c.which_payload_variant) {
     case meshtastic_Config_device_tag:
@@ -787,6 +789,7 @@ void AdminModule::handleSetConfig(const meshtastic_Config &c)
         config.lora = validatedLora;
         // If we're setting region for the first time, init the region and regenerate the keys
         if (isRegionUnset && config.lora.region > meshtastic_Config_LoRaConfig_RegionCode_UNSET) {
+            regionFirstSet = true;
 #if !(MESHTASTIC_EXCLUDE_PKI_KEYGEN || MESHTASTIC_EXCLUDE_PKI)
             if (!owner.is_licensed) {
                 bool keygenSuccess = false;
@@ -804,6 +807,10 @@ void AdminModule::handleSetConfig(const meshtastic_Config &c)
                     config.security.private_key.size = 32;
                     owner.public_key.size = 32;
                     memcpy(owner.public_key.bytes, config.security.public_key.bytes, 32);
+                    // Update the local nodeDB entry so PKI DM decryption can verify our own key.
+                    // Without this, getMeshNode(our_num)->user.public_key.size == 0 and
+                    // perhapsDecode() skips PKI, falling through to "Rejecting legacy DM".
+                    service->reloadOwner(false);
                 }
             }
 #endif
@@ -880,6 +887,12 @@ void AdminModule::handleSetConfig(const meshtastic_Config &c)
     }
 
     saveChanges(changes, requiresReboot);
+
+    // After region is first set (UNSET → valid), broadcast NodeInfo soon so
+    // other nodes hear us without waiting up to 3 hours for the next scheduled broadcast.
+    if (regionFirstSet && !requiresReboot && nodeInfoModule) {
+        nodeInfoModule->scheduleBroadcast(3000);
+    }
 }
 
 bool AdminModule::handleSetModuleConfig(const meshtastic_ModuleConfig &c)
