@@ -414,6 +414,15 @@ void RadioSoftLibInterface::handleReceiveInterrupt()
 
     // read the number of actually received bytes
     size_t length = iface->getPacketLength();
+    // Safety: clamp to the radio buffer size to prevent a buffer overflow when the
+    // KissDriver rx_queue contains a spurious/oversized payload (e.g. a false-positive
+    // LoRa detection filled with noise bytes).
+    if (length > sizeof(radioBuffer)) {
+        LOG_WARN("Dropping oversized packet: %d bytes > radioBuffer %d", (int)length, (int)sizeof(radioBuffer));
+        iface->readData(nullptr, 0); // flush the queue
+        startReceive();
+        return;
+    }
 
     uint32_t rxMsec = getPacketTime(length, true);
 
