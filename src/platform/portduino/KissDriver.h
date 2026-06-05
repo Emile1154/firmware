@@ -321,7 +321,8 @@ public:
     }
     int16_t standby() override {
         tx_enabled = false;
-        rx_queue.clear(); // discard any partial packet data accumulated before standby
+        state = RXT::IDLE;
+        rx_queue.clear();
         return RADIOLIB_ERR_NONE;
     }
 
@@ -612,7 +613,7 @@ private:
 
     void work(){
         uint8_t tmp[512];
-#define MIN_PACKET_LEN 3 
+#define MIN_PACKET_LEN 4
         while(running){
             size_t len = t->receive(tmp, sizeof(tmp));
             if (len == 0){
@@ -621,9 +622,14 @@ private:
             buffer.insert(buffer.end(), tmp, tmp + len);
             while(buffer.size() >= MIN_PACKET_LEN){
                 auto start = std::find(buffer.begin(), buffer.end(), (uint8_t) KISS::FEND);
-
+            
+                if (start == buffer.end()){
+                    break;
+                }
                 auto end = std::find(start + 2, buffer.end(), (uint8_t) KISS::FEND);
-
+                if (end == buffer.end()){
+                    break;
+                }
                 std::vector<uint8_t> frame(start + 1, end);
                 
                 buffer.erase(buffer.begin(), end+1);
@@ -631,6 +637,7 @@ private:
                 handleFrame(frame);
                 
             }
+            usleep(2000);
         }
     }
 
